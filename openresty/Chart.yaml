@@ -15,7 +15,3 @@ sources:
 maintainers:
   - name: Harry
     email: harry2401.work@gmail.com
-chart:
-  name: openresty
-  version: 0.1.2
-  repoUrl: 

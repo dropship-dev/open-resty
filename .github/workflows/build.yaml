@@ -1,0 +1,24 @@
+name: Release Helm Chart
+on:
+  push:
+    branches: [master]
+    paths:
+      - "openresty/**"
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: azure/setup-helm@v4
+      - name: Package chart
+        run: |
+          helm package ./openresty
+          helm repo index . --url https://dropship-dev.github.io/open-resty/
+      - name: Deploy to gh-pages
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_branch: gh-pages
+          publish_dir: .
