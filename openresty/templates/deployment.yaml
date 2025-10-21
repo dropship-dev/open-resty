@@ -47,11 +47,12 @@ spec:
             - name: openresty-run
               mountPath: /var/run/openresty
         - name: ssl-init
-          image: alpine:latest
+          image: alpine:3.18
           command:
-            - /bin/sh
+            - /bin/ash
             - -c
             - |
+              apk update --no-cache
               apk add --no-cache openssl
               mkdir -p /etc/ssl/certs /etc/ssl/private
               openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
@@ -69,6 +70,7 @@ spec:
               fi
           securityContext:
             runAsUser: 0
+            allowPrivilegeEscalation: true
           volumeMounts:
             - name: ssl-certs
               mountPath: /etc/ssl
