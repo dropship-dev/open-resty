@@ -1,4 +1,6 @@
 name: Release Helm Chart
+permissions:
+  contents: write
 on:
   push:
     branches: [master]
