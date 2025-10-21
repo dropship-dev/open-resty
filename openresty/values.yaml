@@ -123,7 +123,7 @@ openresty:
       user nginx;
       worker_processes auto;
       error_log /var/log/nginx/error.log warn;
-      pid /usr/local/openresty/nginx/logs/nginx.pid;
+      pid /var/run/openresty/nginx.pid;
 
       events {
           worker_connections 1024;
@@ -144,6 +144,13 @@ openresty:
           tcp_nodelay on;
           keepalive_timeout 65;
           types_hash_max_size 2048;
+
+        # Use writable temp paths
+        client_body_temp_path /var/run/openresty/nginx-client-body;
+        proxy_temp_path       /var/run/openresty/nginx-proxy;
+        fastcgi_temp_path     /var/run/openresty/nginx-fastcgi;
+        uwsgi_temp_path       /var/run/openresty/nginx-uwsgi;
+        scgi_temp_path        /var/run/openresty/nginx-scgi;
 
           # Gzip Settings
           gzip on;
