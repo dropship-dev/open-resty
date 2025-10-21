@@ -192,26 +192,6 @@ openresty:
                   return 200 "healthy\n";
                   add_header Content-Type text/plain;
               }
-
-              # Lua endpoint for certificate management
-              location /cert {
-                  content_by_lua_block {
-                      local lazy_cert = require "lazy_cert"
-                      local domain = ngx.var.arg_domain
-                      if domain then
-                          local cert, key = lazy_cert.get_cert_from_service(domain)
-                          if cert and key then
-                              ngx.say("Certificate loaded for domain: " .. domain)
-                          else
-                              ngx.status = 404
-                              ngx.say("Certificate not found for domain: " .. domain)
-                          end
-                      else
-                          ngx.status = 400
-                          ngx.say("Domain parameter required")
-                      end
-                  }
-              }
           }
       }
 

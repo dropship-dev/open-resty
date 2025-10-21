@@ -3,9 +3,9 @@ entries:
   openresty:
   - apiVersion: v2
     appVersion: 1.21.4.1
-    created: "2025-10-21T08:01:35.889694259Z"
+    created: "2025-10-21T08:24:18.274513346Z"
     description: A Helm chart for OpenResty with Lua support
-    digest: 6a7315c2c0312a2163efa66ed897bbd5a59434ee8ca294edd7bf44ebe9a4909b
+    digest: 1b3e14250792a77d67e7eef25aee0714ad4a037fd5e6ae08c5062a0b4fb42c31
     home: https://openresty.org/
     keywords:
     - openresty
@@ -22,4 +22,4 @@ entries:
     urls:
     - https://dropship-dev.github.io/open-resty/openresty-0.1.0.tgz
     version: 0.1.0
-generated: "2025-10-21T08:01:35.888696818Z"
+generated: "2025-10-21T08:24:18.273509751Z"
