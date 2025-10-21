@@ -1,0 +1,257 @@
+# Example values for OpenResty Helm Chart
+# Copy this file and customize for your needs
+
+replicaCount: 2
+
+image:
+  repository: openresty/openresty
+  tag: "1.21.4.1-alpine"
+  pullPolicy: IfNotPresent
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+podAnnotations: {}
+
+podSecurityContext:
+  fsGroup: 2000
+
+securityContext:
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: false
+  runAsNonRoot: true
+  runAsUser: 1000
+
+service:
+  type: LoadBalancer
+  port: 80
+  targetPort: 80
+  annotations:
+    # AWS Load Balancer annotations
+    service.beta.kubernetes.io/aws-load-balancer-type: nlb
+    service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
+    # service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
+    service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:region:account:certificate/certificate-id
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
+    # service.beta.kubernetes.io/aws-load-balancer-ssl-redirect: "443"
+  https:
+    enabled: true
+    port: 443
+    targetPort: 443
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: openresty.example.com
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+
+resources:
+  limits:
+    cpu: 1000m
+    memory: 1Gi
+  requests:
+    cpu: 500m
+    memory: 512Mi
+
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80
+
+nodeSelector: {}
+
+tolerations: []
+
+affinity: {}
+
+# OpenResty specific configuration
+openresty:
+  config:
+    enabled: true
+    nginxConf: |
+      user nginx;
+      worker_processes auto;
+      error_log /var/log/nginx/error.log warn;
+      pid /var/run/nginx.pid;
+
+      events {
+          worker_connections 1024;
+      }
+
+      http {
+          include /etc/nginx/mime.types;
+          default_type application/octet-stream;
+
+          log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                          '$status $body_bytes_sent "$http_referer" '
+                          '"$http_user_agent" "$http_x_forwarded_for"';
+
+          access_log /var/log/nginx/access.log main;
+
+          sendfile on;
+          tcp_nopush on;
+          tcp_nodelay on;
+          keepalive_timeout 65;
+          types_hash_max_size 2048;
+
+          # Gzip Settings
+          gzip on;
+          gzip_vary on;
+          gzip_min_length 1024;
+          gzip_proxied any;
+          gzip_comp_level 6;
+          gzip_types
+              text/plain
+              text/css
+              text/xml
+              text/javascript
+              application/json
+              application/javascript
+              application/xml+rss
+              application/atom+xml
+              image/svg+xml;
+
+          # Lua modules
+          lua_package_path "/usr/local/openresty/lualib/custom/?.lua;;";
+          lua_package_cpath "/usr/local/openresty/lualib/?.so;;";
+
+          server {
+              listen 80;
+              server_name _;
+
+              location / {
+                  root /usr/share/nginx/html;
+                  index index.html index.htm;
+              }
+
+              # Health check endpoint
+              location /health {
+                  access_log off;
+                  return 200 "healthy\n";
+                  add_header Content-Type text/plain;
+              }
+
+              # Lua endpoint for certificate management
+              location /cert {
+                  content_by_lua_block {
+                      local lazy_cert = require "lazy_cert"
+                      local domain = ngx.var.arg_domain
+                      if domain then
+                          local cert, key = lazy_cert.get_cert_from_service(domain)
+                          if cert and key then
+                              ngx.say("Certificate loaded for domain: " .. domain)
+                          else
+                              ngx.status = 404
+                              ngx.say("Certificate not found for domain: " .. domain)
+                          end
+                      else
+                          ngx.status = 400
+                          ngx.say("Domain parameter required")
+                      end
+                  }
+              }
+          }
+      }
+
+  lua:
+    enabled: true
+    modules:
+      - http
+      - json
+      - socket
+    scripts:
+      lazy_cert.lua: |
+        local http = require "resty.http"
+        local json = require "cjson"
+
+        local _M = {}
+
+        local function get_cert_from_service(domain)
+            local httpc = http.new()
+            local res, err = httpc:request_uri("http://cert-service:8080/cert/" .. domain, {
+                method = "GET",
+                headers = {
+                    ["Content-Type"] = "application/json"
+                }
+            })
+            
+            if not res then
+                ngx.log(ngx.ERR, "failed to request cert service: ", err)
+                return nil
+            end
+            
+            if res.status ~= 200 then
+                ngx.log(ngx.ERR, "cert service returned status: ", res.status)
+                return nil
+            end
+            
+            local cert_data = json.decode(res.body)
+            return cert_data.cert, cert_data.key
+        end
+
+        _M.get_cert_from_service = get_cert_from_service
+
+        return _M
+
+# Persistent Volume configuration
+persistence:
+  enabled: true
+  accessMode: ReadWriteOnce
+  size: 5Gi
+  storageClass: "gp2"
+
+# Additional volumes
+extraVolumes: []
+extraVolumeMounts: []
+
+# Environment variables
+env:
+  - name: TZ
+    value: "UTC"
+  - name: NGINX_WORKER_PROCESSES
+    value: "auto"
+
+# Probes configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Network policies
+networkPolicy:
+  enabled: false
+  ingress: []
+  egress: []
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1

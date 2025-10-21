@@ -1,0 +1,46 @@
+{{- if .Values.openresty.modules.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openresty.fullname" . }}-modules-script
+  labels:
+    {{- include "openresty.labels" . | nindent 4 }}
+data:
+  install-modules.sh: |
+    #!/bin/bash
+    set -e
+    
+    echo "Installing Lua modules..."
+    
+    # Update luarocks
+    luarocks install luarocks
+    
+    # Install luarocks modules
+    {{- if .Values.openresty.modules.luarocks }}
+    {{- range .Values.openresty.modules.luarocks }}
+    echo "Installing {{ . }} via luarocks..."
+    luarocks install {{ . }} || echo "Failed to install {{ . }}, continuing..."
+    {{- end }}
+    {{- end }}
+    
+    # Install Git modules
+    {{- if .Values.openresty.modules.gitModules }}
+    {{- range .Values.openresty.modules.gitModules }}
+    echo "Installing {{ .name }} from {{ .url }}..."
+    if [ ! -d "{{ .path }}" ]; then
+        mkdir -p {{ .path }}
+        git clone {{ .url }} /tmp/{{ .name }} || echo "Failed to clone {{ .name }}, continuing..."
+        if [ -d "/tmp/{{ .name }}" ]; then
+            cp -r /tmp/{{ .name }}/* {{ .path }}/
+            rm -rf /tmp/{{ .name }}
+        fi
+    fi
+    {{- end }}
+    {{- end }}
+    
+    echo "Lua modules installation completed!"
+    
+    # Set proper permissions
+    chown -R nginx:nginx /usr/local/openresty/lualib/ || true
+    chmod -R 755 /usr/local/openresty/lualib/ || true
+{{- end }}

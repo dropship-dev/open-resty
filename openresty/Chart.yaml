@@ -1,0 +1,17 @@
+apiVersion: v2
+name: openresty
+description: A Helm chart for OpenResty with Lua support
+type: application
+version: 0.1.0
+appVersion: "1.21.4.1"
+keywords:
+  - openresty
+  - nginx
+  - lua
+  - loadbalancer
+home: https://openresty.org/
+sources:
+  - https://github.com/openresty/openresty
+maintainers:
+  - name: Harry
+    email: harry2401.work@gmail.com

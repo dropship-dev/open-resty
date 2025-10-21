@@ -1,0 +1,11 @@
+{{- if .Values.openresty.config.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "openresty.configMapName" . }}
+  labels:
+    {{- include "openresty.labels" . | nindent 4 }}
+data:
+  nginx.conf: |
+{{ .Values.openresty.config.nginxConf | indent 4 }}
+{{- end }}
