@@ -64,7 +64,7 @@ spec:
               if [ -f /custom-ssl/certs/nginx-selfsigned.crt ] && [ -f /custom-ssl/private/nginx-selfsigned.key ]; then
                 chmod 644 /custom-ssl/certs/nginx-selfsigned.crt
                 chmod 600 /custom-ssl/private/nginx-selfsigned.key
-                chown -R 1000:1000 /etc/ssl
+                chown -R 1000:1000 /custom-ssl
                 echo "SSL certificates created successfully"
               else
                 echo "Failed to create SSL certificates"
