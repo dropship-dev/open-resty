@@ -114,7 +114,7 @@ spec:
             {{- toYaml .Values.env | nindent 12 }}
           volumeMounts:
             - name: config
-              mountPath: /etc/nginx/nginx.conf
+              mountPath: /usr/local/openresty/nginx/conf/nginx.conf
               subPath: nginx.conf
             - name: openresty-run
               mountPath: /var/run/openresty
