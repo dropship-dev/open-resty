@@ -33,7 +33,7 @@ securityContext:
 service:
   type: LoadBalancer
   port: 80
-  targetPort: 80
+  targetPort: 8080
   annotations:
     # AWS Load Balancer annotations
     service.beta.kubernetes.io/aws-load-balancer-type: nlb
@@ -46,7 +46,7 @@ service:
   https:
     enabled: true
     port: 443
-    targetPort: 443
+    targetPort: 8443
 
 ingress:
   enabled: false
@@ -132,8 +132,54 @@ openresty:
           lua_package_cpath "/usr/local/openresty/lualib/?.so;;";
 
           server {
-              listen 80;
+              listen 8080;
               server_name _;
+
+              location / {
+                  root /usr/share/nginx/html;
+                  index index.html index.htm;
+              }
+
+              # Health check endpoint
+              location /health {
+                  access_log off;
+                  return 200 "healthy\n";
+                  add_header Content-Type text/plain;
+              }
+
+              # Lua endpoint for certificate management
+              location /cert {
+                  content_by_lua_block {
+                      local lazy_cert = require "lazy_cert"
+                      local domain = ngx.var.arg_domain
+                      if domain then
+                          local cert, key = lazy_cert.get_cert_from_service(domain)
+                          if cert and key then
+                              ngx.say("Certificate loaded for domain: " .. domain)
+                          else
+                              ngx.status = 404
+                              ngx.say("Certificate not found for domain: " .. domain)
+                          end
+                      else
+                          ngx.status = 400
+                          ngx.say("Domain parameter required")
+                      end
+                  }
+              }
+          }
+
+          server {
+              listen 8443 ssl;
+              server_name _;
+
+              # SSL configuration (you can customize these paths)
+              ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+              ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+              
+              # SSL settings
+              ssl_protocols TLSv1.2 TLSv1.3;
+              ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
+              ssl_prefer_server_ciphers off;
 
               location / {
                   root /usr/share/nginx/html;
