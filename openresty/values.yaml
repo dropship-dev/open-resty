@@ -123,14 +123,14 @@ openresty:
       user nginx;
       worker_processes auto;
       error_log /var/log/nginx/error.log warn;
-      pid /var/run/nginx.pid;
+      pid /usr/local/openresty/nginx/logs/nginx.pid;
 
       events {
           worker_connections 1024;
       }
 
       http {
-          include /etc/nginx/mime.types;
+          include /usr/local/openresty/nginx/conf/mime.types;
           default_type application/octet-stream;
 
           log_format main '$remote_addr - $remote_user [$time_local] "$request" '
@@ -184,8 +184,8 @@ openresty:
               server_name _;
 
               # SSL configuration (you can customize these paths)
-              ssl_certificate /custom-ssl/certs/nginx-selfsigned.crt;
-              ssl_certificate_key /custom-ssl/private/nginx-selfsigned.key;
+              ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
+              ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
               
               # SSL settings
               ssl_protocols TLSv1.2 TLSv1.3;
