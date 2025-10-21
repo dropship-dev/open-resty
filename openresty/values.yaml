@@ -35,6 +35,7 @@ securityContext:
   readOnlyRootFilesystem: false
   runAsNonRoot: true
   runAsUser: 1000
+  allowPrivilegeEscalation: false
 
 service:
   type: LoadBalancer
