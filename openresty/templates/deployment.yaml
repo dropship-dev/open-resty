@@ -39,7 +39,9 @@ spec:
               mkdir -p /var/run/openresty/nginx-fastcgi
               mkdir -p /var/run/openresty/nginx-uwsgi
               mkdir -p /var/run/openresty/nginx-scgi
+              mkdir -p /var/log/nginx
               chown -R 1000:1000 /var/run/openresty
+              chown -R 1000:1000 /var/log/nginx
               chmod -R 755 /var/run/openresty
           securityContext:
             runAsUser: 0
