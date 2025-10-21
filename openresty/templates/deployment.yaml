@@ -47,19 +47,26 @@ spec:
             - name: openresty-run
               mountPath: /var/run/openresty
         - name: ssl-init
-          image: {{ include "openresty.image" . }}
+          image: alpine:latest
           command:
             - /bin/sh
             - -c
             - |
+              apk add --no-cache openssl
               mkdir -p /etc/ssl/certs /etc/ssl/private
               openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                 -keyout /etc/ssl/private/nginx-selfsigned.key \
                 -out /etc/ssl/certs/nginx-selfsigned.crt \
                 -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
-              chmod 644 /etc/ssl/certs/nginx-selfsigned.crt
-              chmod 600 /etc/ssl/private/nginx-selfsigned.key
-              chown -R nginx:nginx /etc/ssl
+              if [ -f /etc/ssl/certs/nginx-selfsigned.crt ] && [ -f /etc/ssl/private/nginx-selfsigned.key ]; then
+                chmod 644 /etc/ssl/certs/nginx-selfsigned.crt
+                chmod 600 /etc/ssl/private/nginx-selfsigned.key
+                chown -R 1000:1000 /etc/ssl
+                echo "SSL certificates created successfully"
+              else
+                echo "Failed to create SSL certificates"
+                exit 1
+              fi
           securityContext:
             runAsUser: 0
           volumeMounts:
