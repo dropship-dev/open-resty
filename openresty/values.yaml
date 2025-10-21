@@ -184,8 +184,8 @@ openresty:
               server_name _;
 
               # SSL configuration (you can customize these paths)
-              ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
-              ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
+              ssl_certificate /custom-ssl/certs/nginx-selfsigned.crt;
+              ssl_certificate_key /custom-ssl/private/nginx-selfsigned.key;
               
               # SSL settings
               ssl_protocols TLSv1.2 TLSv1.3;

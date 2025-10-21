@@ -56,14 +56,14 @@ spec:
               apk add --no-cache ca-certificates
               update-ca-certificates
               apk add --no-cache openssl
-              mkdir -p /etc/ssl/certs /etc/ssl/private
+              mkdir -p /custom-ssl/certs /custom-ssl/private
               openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout /etc/ssl/private/nginx-selfsigned.key \
-                -out /etc/ssl/certs/nginx-selfsigned.crt \
+                -keyout /custom-ssl/private/nginx-selfsigned.key \
+                -out /custom-ssl/certs/nginx-selfsigned.crt \
                 -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
-              if [ -f /etc/ssl/certs/nginx-selfsigned.crt ] && [ -f /etc/ssl/private/nginx-selfsigned.key ]; then
-                chmod 644 /etc/ssl/certs/nginx-selfsigned.crt
-                chmod 600 /etc/ssl/private/nginx-selfsigned.key
+              if [ -f /custom-ssl/certs/nginx-selfsigned.crt ] && [ -f /custom-ssl/private/nginx-selfsigned.key ]; then
+                chmod 644 /custom-ssl/certs/nginx-selfsigned.crt
+                chmod 600 /custom-ssl/private/nginx-selfsigned.key
                 chown -R 1000:1000 /etc/ssl
                 echo "SSL certificates created successfully"
               else
@@ -75,7 +75,7 @@ spec:
             allowPrivilegeEscalation: true
           volumeMounts:
             - name: ssl-certs
-              mountPath: /etc/ssl
+              mountPath: /custom-ssl
         {{- if .Values.openresty.modules.enabled }}
         - name: modules-init
           image: {{ include "openresty.image" . }}
