@@ -1,306 +1,88 @@
-# Default values for openresty.
-# This is a YAML-formatted file.
-# Declare variables to be passed into your templates.
-
-replicaCount: 1
-
 image:
+  registry: docker.io
   repository: openresty/openresty
+  tag: "1.25.3.1-alpine"
   pullPolicy: IfNotPresent
-  # Overrides the image tag whose default is the chart appVersion.
-  tag: ""
 
-imagePullSecrets: []
-nameOverride: ""
-fullnameOverride: ""
-
-serviceAccount:
-  # Specifies whether a service account should be created
-  create: true
-  # Annotations to add to the service account
-  annotations: {}
-  # The name of the service account to use.
-  # If not set and create is true, a name is generated using the fullname template
-  name: ""
-
-podAnnotations: {}
-
-podSecurityContext:
-  fsGroup: 1000
-
-securityContext:
-  capabilities:
-    drop:
-      - ALL
-  readOnlyRootFilesystem: false
-  runAsNonRoot: true
-  runAsUser: 1000
-  allowPrivilegeEscalation: false
+# Deployment replicas
+replicaCount: 1
 
 service:
   type: LoadBalancer
   port: 80
-  targetPort: 8080
-  annotations:
-    {}
-    # Example annotations for cloud providers
-    # service.beta.kubernetes.io/aws-load-balancer-type: nlb
-    # service.beta.kubernetes.io/aws-load-balancer-backend-protocol: tcp
-    # service.beta.kubernetes.io/aws-load-balancer-cross-zone-load-balancing-enabled: "true"
-    # service.beta.kubernetes.io/aws-load-balancer-scheme: internet-facing
-    # service.beta.kubernetes.io/aws-load-balancer-ssl-cert: arn:aws:acm:region:account:certificate/certificate-id
-    # service.beta.kubernetes.io/aws-load-balancer-ssl-ports: "https"
-    # service.beta.kubernetes.io/aws-load-balancer-ssl-redirect: "443"
-  # Additional ports for HTTPS
+
   https:
-    enabled: true
     port: 443
-    targetPort: 8443
+  annotations: {}
 
-ingress:
-  enabled: false
-  className: ""
-  annotations:
-    {}
-    # kubernetes.io/ingress.class: nginx
-    # kubernetes.io/tls-acme: "true"
-  hosts:
-    - host: chart-example.local
-      paths:
-        - path: /
-          pathType: Prefix
-  tls: []
-  #  - secretName: chart-example-tls
-  #    hosts:
-  #      - chart-example.local
+# Autoscaling (HPA)
+autoscaling:
+  enabled: true
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
 
+# Resources limits/requests
 resources:
-  # We usually recommend not to specify default resources and to leave this as a conscious
-  # choice for the user. This also increases chances charts run on environments with little
-  # resources, such as Minikube. If you do want to specify resources, uncomment the following
-  # lines, adjust them as necessary, and remove the curly braces after 'resources:'.
   limits:
-    cpu: 500m
-    memory: 512Mi
+    cpu: 1000m
+    memory: 4096Mi
   requests:
     cpu: 250m
-    memory: 256Mi
+    memory: 1024Mi
 
-autoscaling:
-  enabled: false
-  minReplicas: 1
-  maxReplicas: 100
-  targetCPUUtilizationPercentage: 80
-  # targetMemoryUtilizationPercentage: 80
+# Nginx configuration
 
-nodeSelector: {}
+luaScripts:
+  {}
+  # example:
+  # my_script.lua: |
+  #   local http = require "resty.http"
+  #   -- Custom Lua code here
 
-tolerations: []
-
-affinity: {}
-
-# OpenResty specific configuration
-openresty:
-  # Lua modules to install
-  modules:
-    enabled: false
-    # Install additional Lua modules via luarocks
-    luarocks:
-      - "lua-resty-auto-ssl"
-      - "lua-resty-redis"
-      - "lua-resty-mysql"
-      - "lua-resty-jwt"
-    # Custom modules from Git
-    gitModules:
-      - name: "lua-resty-consul"
-        url: "https://github.com/hashicorp/lua-resty-consul.git"
-        path: "/usr/local/openresty/lualib/resty/consul"
-  # Custom nginx.conf configuration
-  config:
-    enabled: true
-    # Default nginx.conf content
-    nginxConf: |
-      user nginx;
-      worker_processes auto;
-      error_log /var/log/nginx/error.log warn;
-      pid /var/run/openresty/nginx.pid;
-
-      events {
-          worker_connections 1024;
+config:
+  nginxConfig: |
+    worker_processes auto;
+    error_log /dev/stderr;
+    events { worker_connections 1024; }
+    http {
+      include       mime.types;
+      default_type  application/octet-stream;
+      sendfile        on;
+      keepalive_timeout  65;
+      server {
+        listen       80;
+        server_name  _;
+        location / {
+          root   html;
+          index  index.html index.htm;
+        }
       }
 
-      http {
-          include /usr/local/openresty/nginx/conf/mime.types;
-          default_type application/octet-stream;
+      server {
+        listen 443 ssl;
+        server_name _;
+        ssl_certificate /usr/local/openresty/nginx/data/cert.crt;
+        ssl_certificate_key /usr/local/openresty/nginx/data/cert.key;
+        ssl_session_timeout 1d;
+        ssl_session_cache shared:SSL:10m;
+        ssl_session_tickets off;
 
-          log_format main '$remote_addr - $remote_user [$time_local] "$request" '
-                          '$status $body_bytes_sent "$http_referer" '
-                          '"$http_user_agent" "$http_x_forwarded_for"';
-
-          access_log /var/log/nginx/access.log main;
-
-          sendfile on;
-          tcp_nopush on;
-          tcp_nodelay on;
-          keepalive_timeout 65;
-          types_hash_max_size 2048;
-
-        # Use writable temp paths
-        client_body_temp_path /var/run/openresty/nginx-client-body;
-        proxy_temp_path       /var/run/openresty/nginx-proxy;
-        fastcgi_temp_path     /var/run/openresty/nginx-fastcgi;
-        uwsgi_temp_path       /var/run/openresty/nginx-uwsgi;
-        scgi_temp_path        /var/run/openresty/nginx-scgi;
-
-          # Gzip Settings
-          gzip on;
-          gzip_vary on;
-          gzip_min_length 1024;
-          gzip_proxied any;
-          gzip_comp_level 6;
-          gzip_types
-              text/plain
-              text/css
-              text/xml
-              text/javascript
-              application/json
-              application/javascript
-              application/xml+rss
-              application/atom+xml
-              image/svg+xml;
-
-          server {
-              listen 8080;
-              server_name _;
-
-              location / {
-                  root /usr/share/nginx/html;
-                  index index.html index.htm;
-              }
-
-              # Health check endpoint
-              location /health {
-                  access_log off;
-                  return 200 "healthy\n";
-                  add_header Content-Type text/plain;
-              }
-          }
-
-          server {
-              listen 8443 ssl;
-              server_name _;
-
-              # SSL configuration (you can customize these paths)
-              ssl_certificate /etc/ssl/certs/nginx-selfsigned.crt;
-              ssl_certificate_key /etc/ssl/private/nginx-selfsigned.key;
-              
-              # SSL settings
-              ssl_protocols TLSv1.2 TLSv1.3;
-              ssl_ciphers ECDHE-RSA-AES128-GCM-SHA256:ECDHE-RSA-AES256-GCM-SHA384;
-              ssl_prefer_server_ciphers off;
-
-              location / {
-                  root /usr/share/nginx/html;
-                  index index.html index.htm;
-              }
-
-              # Health check endpoint
-              location /health {
-                  access_log off;
-                  return 200 "healthy\n";
-                  add_header Content-Type text/plain;
-              }
-          }
+        location / {
+          root   html;
+          index  index.html index.htm;
+        }
       }
+    }
 
-  # Lua scripts configuration
-  lua:
-    enabled: true
-    # Lua modules to include
-    modules:
-      - http
-      - json
-      - socket
-    # Custom Lua scripts
-    scripts:
-      # Example lazy load cert script
-      lazy_cert.lua: |
-        local http = require "resty.http"
-        local json = require "cjson"
+data:
+  cert.crt: |
+    -----BEGIN CERTIFICATE-----
+    -----END CERTIFICATE-----
+  cert.key: |
+    -----BEGIN PRIVATE KEY-----
+    -----END PRIVATE KEY-----
 
-        local function get_cert_from_service(domain)
-            local httpc = http.new()
-            local res, err = httpc:request_uri("http://cert-service:8080/cert/" .. domain, {
-                method = "GET",
-                headers = {
-                    ["Content-Type"] = "application/json"
-                }
-            })
-            
-            if not res then
-                ngx.log(ngx.ERR, "failed to request cert service: ", err)
-                return nil
-            end
-            
-            if res.status ~= 200 then
-                ngx.log(ngx.ERR, "cert service returned status: ", res.status)
-                return nil
-            end
-            
-            local cert_data = json.decode(res.body)
-            return cert_data.cert, cert_data.key
-        end
-
-        -- Export functions
-        _M.get_cert_from_service = get_cert_from_service
-
-        return _M
-
-# Persistent Volume configuration
-persistence:
-  enabled: false
-  # storageClass: ""
-  accessMode: ReadWriteOnce
-  size: 1Gi
-  # existingClaim: ""
-
-# Additional volumes
-extraVolumes: []
-extraVolumeMounts: []
-
-# Environment variables
-env:
-  []
-  # - name: ENV_VAR_NAME
-  #   value: "value"
-
-# Probes configuration
-livenessProbe:
-  httpGet:
-    path: /health
-    port: http
-  initialDelaySeconds: 30
-  periodSeconds: 10
-  timeoutSeconds: 5
-  failureThreshold: 3
-
-readinessProbe:
-  httpGet:
-    path: /health
-    port: http
-  initialDelaySeconds: 5
-  periodSeconds: 5
-  timeoutSeconds: 3
-  failureThreshold: 3
-
-# Network policies
-networkPolicy:
-  enabled: false
-  ingress: []
-  egress: []
-
-# Pod disruption budget
-podDisruptionBudget:
-  enabled: false
-  minAvailable: 1
-  # maxUnavailable: 1
+# Pod annotations, labels, etc.
+podAnnotations: {}
+podLabels: {}

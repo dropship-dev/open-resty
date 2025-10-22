@@ -1,9 +1,7 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: {{ include "openresty.fullname" . }}
-  labels:
-    {{- include "openresty.labels" . | nindent 4 }}
+  name: {{ .Release.Name }}-openresty
   {{- with .Values.service.annotations }}
   annotations:
     {{- toYaml . | nindent 4 }}
@@ -11,15 +9,15 @@ metadata:
 spec:
   type: {{ .Values.service.type }}
   ports:
-    - port: {{ .Values.service.port }}
-      targetPort: http
-      protocol: TCP
-      name: http
-    {{- if .Values.service.https.enabled }}
-    - port: {{ .Values.service.https.port }}
-      targetPort: https
-      protocol: TCP
-      name: https
-    {{- end }}
+  - port: {{ .Values.service.port }}
+    targetPort: 80
+    protocol: TCP
+    name: http
+  {{- if .Values.service.https.enabled }}
+  - port: {{ .Values.service.https.port }}
+    targetPort: 443
+    protocol: TCP
+    name: https
+  {{- end }}
   selector:
-    {{- include "openresty.selectorLabels" . | nindent 4 }}
+    app: {{ .Release.Name }}-openresty
