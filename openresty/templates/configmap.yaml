@@ -1,11 +1,15 @@
-{{- if .Values.openresty.config.enabled }}
 apiVersion: v1
 kind: ConfigMap
 metadata:
-  name: {{ include "openresty.configMapName" . }}
-  labels:
-    {{- include "openresty.labels" . | nindent 4 }}
+  name: {{ .Release.Name }}-config
 data:
-  nginx.conf: |
-{{ .Values.openresty.config.nginxConf | indent 4 }}
+  nginx.conf: |-
+{{ .Values.config.nginxConfig | nindent 4 }}
+{{- range $configName, $configValue := .Values.data }}
+  {{ $configName }}: |-
+{{ $configValue | nindent 4 }}
+{{- end }}
+{{- range $scriptName, $scriptValue := .Values.luaScripts }}
+  {{ $scriptName }}: |-
+{{ $scriptValue | nindent 4 }}
 {{- end }}

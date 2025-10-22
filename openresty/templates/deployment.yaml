@@ -1,175 +1,51 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: {{ include "openresty.fullname" . }}
-  labels:
-    {{- include "openresty.labels" . | nindent 4 }}
+  name: {{ .Release.Name }}-openresty
 spec:
-  {{- if not .Values.autoscaling.enabled }}
   replicas: {{ .Values.replicaCount }}
-  {{- end }}
   selector:
     matchLabels:
-      {{- include "openresty.selectorLabels" . | nindent 6 }}
+      app: {{ .Release.Name }}-openresty
   template:
     metadata:
+      labels:
+        app: {{ .Release.Name }}-openresty
       {{- with .Values.podAnnotations }}
       annotations:
         {{- toYaml . | nindent 8 }}
       {{- end }}
-      labels:
-        {{- include "openresty.selectorLabels" . | nindent 8 }}
     spec:
-      {{- with .Values.imagePullSecrets }}
-      imagePullSecrets:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      serviceAccountName: {{ include "openresty.serviceAccountName" . }}
-      securityContext:
-        {{- toYaml .Values.podSecurityContext | nindent 8 }}
-      initContainers:
-        - name: openresty-init
-          image: {{ include "openresty.image" . }}
-          command:
-            - /bin/sh
-            - -c
-            - |
-              mkdir -p /var/run/openresty/nginx-client-body
-              mkdir -p /var/run/openresty/nginx-proxy
-              mkdir -p /var/run/openresty/nginx-fastcgi
-              mkdir -p /var/run/openresty/nginx-uwsgi
-              mkdir -p /var/run/openresty/nginx-scgi
-              mkdir -p /var/log/nginx
-              chown -R 1000:1000 /var/run/openresty
-              chown -R 1000:1000 /var/log/nginx
-              chmod -R 755 /var/run/openresty
-          securityContext:
-            runAsUser: 0
-          volumeMounts:
-            - name: openresty-run
-              mountPath: /var/run/openresty
-        - name: ssl-init
-          image: alpine:3.18
-          command:
-            - /bin/ash
-            - -c
-            - |
-              apk update --no-cache
-              apk add --no-cache ca-certificates
-              update-ca-certificates
-              apk add --no-cache openssl
-              mkdir -p /custom-ssl/certs /custom-ssl/private
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
-                -keyout /custom-ssl/private/nginx-selfsigned.key \
-                -out /custom-ssl/certs/nginx-selfsigned.crt \
-                -subj "/C=US/ST=State/L=City/O=Organization/CN=localhost"
-              if [ -f /custom-ssl/certs/nginx-selfsigned.crt ] && [ -f /custom-ssl/private/nginx-selfsigned.key ]; then
-                chmod 644 /custom-ssl/certs/nginx-selfsigned.crt
-                chmod 600 /custom-ssl/private/nginx-selfsigned.key
-                chown -R 1000:1000 /custom-ssl
-                echo "SSL certificates created successfully"
-              else
-                echo "Failed to create SSL certificates"
-                exit 1
-              fi
-          securityContext:
-            runAsUser: 0
-            allowPrivilegeEscalation: true
-          volumeMounts:
-            - name: ssl-certs
-              mountPath: /custom-ssl
-        {{- if .Values.openresty.modules.enabled }}
-        - name: modules-init
-          image: {{ include "openresty.image" . }}
-          command:
-            - /bin/sh
-            - /tmp/install-modules.sh
-          volumeMounts:
-            - name: modules-script
-              mountPath: /tmp/install-modules.sh
-              subPath: install-modules.sh
-            - name: lua-lib
-              mountPath: /usr/local/openresty/lualib
-        {{- end }}
       containers:
-        - name: {{ .Chart.Name }}
-          securityContext:
-            {{- toYaml .Values.securityContext | nindent 12 }}
-          image: {{ include "openresty.image" . }}
-          imagePullPolicy: {{ .Values.image.pullPolicy }}
-          ports:
-            - name: http
-              containerPort: {{ .Values.service.targetPort }}
-              protocol: TCP
-            {{- if .Values.service.https.enabled }}
-            - name: https
-              containerPort: {{ .Values.service.https.targetPort }}
-              protocol: TCP
-            {{- end }}
-          livenessProbe:
-            {{- toYaml .Values.livenessProbe | nindent 12 }}
-          readinessProbe:
-            {{- toYaml .Values.readinessProbe | nindent 12 }}
-          resources:
-            {{- toYaml .Values.resources | nindent 12 }}
-          env:
-            {{- toYaml .Values.env | nindent 12 }}
-          volumeMounts:
-            - name: config
-              mountPath: /usr/local/openresty/nginx/conf/nginx.conf
-              subPath: nginx.conf
-            - name: openresty-run
-              mountPath: /var/run/openresty
-            - name: ssl-certs
-              mountPath: /etc/ssl
-            {{- if .Values.openresty.lua.enabled }}
-            - name: lua-scripts
-              mountPath: /usr/local/openresty/lualib/custom
-            {{- end }}
-            {{- if .Values.persistence.enabled }}
-            - name: data
-              mountPath: /var/log/nginx
-            {{- end }}
-            {{- with .Values.extraVolumeMounts }}
-            {{- toYaml . | nindent 12 }}
-            {{- end }}
+      - name: openresty
+        image: "{{ .Values.image.registry }}/{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        ports:
+        - containerPort: 80
+          protocol: TCP
+          name: http
+        {{- if .Values.service.https.enabled }}
+        - containerPort: 443
+          protocol: TCP
+          name: https
+        {{- end }}
+        resources:
+          {{- toYaml .Values.resources | nindent 10 }}
+        volumeMounts:
+        - name: configmap
+          mountPath: /usr/local/openresty/nginx/conf/nginx.conf
+          subPath: nginx.conf
+        {{- range $configName := keys .Values.data }}
+        - name: configmap
+          mountPath: /usr/local/openresty/nginx/data/{{ $configName }}
+          subPath: {{ $configName }}
+        {{- end }}
+        {{- range $scriptName := keys .Values.luaScripts }}
+        - name: configmap
+          mountPath: /usr/local/openresty/lualib/{{ $scriptName }}
+          subPath: {{ $scriptName }}
+        {{- end }}
       volumes:
-        - name: config
-          configMap:
-            name: {{ include "openresty.configMapName" . }}
-        - name: openresty-run
-          emptyDir: {}
-        - name: ssl-certs
-          emptyDir: {}
-        {{- if .Values.openresty.lua.enabled }}
-        - name: lua-scripts
-          configMap:
-            name: {{ include "openresty.luaConfigMapName" . }}
-        {{- end }}
-        {{- if .Values.openresty.modules.enabled }}
-        - name: modules-script
-          configMap:
-            name: {{ include "openresty.fullname" . }}-modules-script
-        - name: lua-lib
-          emptyDir: {}
-        {{- end }}
-        {{- if .Values.persistence.enabled }}
-        - name: data
-          persistentVolumeClaim:
-            claimName: {{ include "openresty.pvcName" . }}
-        {{- end }}
-        {{- with .Values.extraVolumes }}
-        {{- toYaml . | nindent 8 }}
-        {{- end }}
-      {{- with .Values.nodeSelector }}
-      nodeSelector:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.affinity }}
-      affinity:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
-      {{- with .Values.tolerations }}
-      tolerations:
-        {{- toYaml . | nindent 8 }}
-      {{- end }}
+      - name: configmap
+        configMap:
+          name: {{ .Release.Name }}-config
