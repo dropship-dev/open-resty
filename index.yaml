@@ -1,13 +1,13 @@
 apiVersion: v1
 entries:
   openresty:
-  - apiVersion: v2
-    appVersion: 1.25.3
-    created: "2025-10-22T02:46:38.279871957Z"
-    description: A Helm chart for deploying OpenResty on Kubernetes
-    digest: 90156de79fc8f503812ac16d60d36e8ac0ff77e93c058c695217f7a10ddfde10
-    name: openresty
-    urls:
-    - https://dropship-dev.github.io/open-resty/openresty-0.1.0.tgz
-    version: 0.1.0
+    - apiVersion: v2
+      appVersion: 1.25.3
+      created: "2025-10-22T02:46:38.279871957Z"
+      description: A Helm chart for deploying OpenResty on Kubernetes
+      digest: 90156de79fc8f503812ac16d60d36e8ac0ff77e93c058c695217f7a10ddfde10
+      name: openresty
+      urls:
+        - https://dropship-dev.github.io/open-resty/openresty-0.1.0.tgz
+      version: 0.1.0
 generated: "2025-10-22T02:46:38.279428981Z"
